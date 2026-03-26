@@ -24,20 +24,33 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+const PROFILE_KEY = 'salonSprint_stylistProfile';
+
 // ─── STYLIST VIEW ─────────────────────────────────────────────────────────────
 const StylistView = ({ orders, onPlaceOrder }) => {
+  const savedProfile = JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}');
+
   const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
+  const [name, setName] = useState(savedProfile.name || '');
+  const [address, setAddress] = useState(savedProfile.address || '');
   const [time, setTime] = useState('');
   const [pickedItems, setPickedItems] = useState([]);
   const [photo, setPhoto] = useState(null);
   const [submitted, setSubmitted] = useState(false);
 
-  const canSubmit = name.trim() && address.trim() && time.trim() && pickedItems.length > 0;
+  const saveProfile = (n, a) => {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify({ name: n, address: a }));
+  };
+
+  const [validationMsg, setValidationMsg] = useState('');
 
   const handleSubmit = () => {
-    if (!canSubmit) return;
+    if (!name.trim()) { setValidationMsg('Please enter your name.'); return; }
+    if (!address.trim()) { setValidationMsg('Please enter your delivery address.'); return; }
+    if (!time.trim()) { setValidationMsg('Please enter a preferred delivery time.'); return; }
+    if (pickedItems.length === 0) { setValidationMsg('Please add at least one item.'); return; }
+    setValidationMsg('');
+    saveProfile(name, address);
     onPlaceOrder({
       name,
       address,
@@ -47,7 +60,7 @@ const StylistView = ({ orders, onPlaceOrder }) => {
     });
     setSubmitted(true);
     setShowForm(false);
-    setName(''); setAddress(''); setTime('');
+    setTime('');
     setPickedItems([]); setPhoto(null);
   };
 
@@ -77,12 +90,22 @@ const StylistView = ({ orders, onPlaceOrder }) => {
         <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-5">
           <h3 className="text-base font-bold text-indigo-700 mb-4">New Delivery Request</h3>
           <div className="flex flex-col gap-3 mb-4">
-            <input type="text" placeholder="Your name" value={name}
-              onChange={(e) => setName(e.target.value)}
-              className={inputClass} />
-            <input type="text" placeholder="Delivery address" value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className={inputClass} />
+            <div>
+              <input type="text" placeholder="Your name" value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={inputClass} />
+              {savedProfile.name && (
+                <p className="text-xs text-indigo-500 mt-1 ml-1">Remembered from last order</p>
+              )}
+            </div>
+            <div>
+              <input type="text" placeholder="Delivery address" value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className={inputClass} />
+              {savedProfile.address && (
+                <p className="text-xs text-indigo-500 mt-1 ml-1">Remembered from last order</p>
+              )}
+            </div>
             <input type="text" placeholder="Preferred time (e.g. 3:00 PM)" value={time}
               onChange={(e) => setTime(e.target.value)}
               className={inputClass} />
@@ -94,11 +117,12 @@ const StylistView = ({ orders, onPlaceOrder }) => {
             onPhotoChange={setPhoto}
           />
 
-          <div className="flex gap-3 mt-4">
-            <button onClick={handleSubmit} disabled={!canSubmit}
-              className={`flex-1 py-3.5 rounded-xl flex items-center justify-center gap-2 font-semibold touch-manipulation text-white ${
-                canSubmit ? 'bg-indigo-600 active:bg-indigo-800' : 'bg-indigo-300'
-              }`}>
+          {validationMsg && (
+            <p className="text-red-500 text-sm mt-3 mb-1 font-medium">{validationMsg}</p>
+          )}
+          <div className="flex gap-3 mt-3">
+            <button onClick={handleSubmit}
+              className="flex-1 py-3.5 rounded-xl flex items-center justify-center gap-2 font-semibold touch-manipulation text-white bg-indigo-600 active:bg-indigo-800">
               <Check size={18} />
               Submit Order
             </button>
