@@ -7,32 +7,29 @@ const STORAGE_KEY = 'salonSprint_usualItems';
 const ItemPicker = ({ onItemsChange, onPhotoChange }) => {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
-  const [selectedItems, setSelectedItems] = useState([]);
+  const [items, setItems] = useState([]);
   const [photo, setPhoto] = useState(null);
-  const [showSaved, setShowSaved] = useState(false);
   const [savedItems, setSavedItems] = useState([]);
   const [justSaved, setJustSaved] = useState(false);
   const inputRef = useRef(null);
   const fileRef = useRef(null);
   const cameraRef = useRef(null);
 
-  // Load saved items from localStorage on mount
+  // Load saved items on mount
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) setSavedItems(JSON.parse(stored));
   }, []);
 
-  // Notify parent when items change
-  useEffect(() => {
-    onItemsChange(selectedItems);
-  }, [selectedItems]);
+  // Helper: update items and notify parent in one step
+  const updateItems = (newItems) => {
+    setItems(newItems);
+    onItemsChange(newItems);
+  };
 
   // Autocomplete filtering
   useEffect(() => {
-    if (query.length < 2) {
-      setSuggestions([]);
-      return;
-    }
+    if (query.length < 2) { setSuggestions([]); return; }
     const q = query.toLowerCase();
     const results = products.filter(p =>
       p.name.toLowerCase().includes(q) ||
@@ -43,14 +40,11 @@ const ItemPicker = ({ onItemsChange, onPhotoChange }) => {
   }, [query]);
 
   const addProduct = (product) => {
-    const exists = selectedItems.find(i => i.id === product.id);
-    if (exists) {
-      setSelectedItems(selectedItems.map(i =>
-        i.id === product.id ? { ...i, qty: i.qty + 1 } : i
-      ));
-    } else {
-      setSelectedItems([...selectedItems, { ...product, qty: 1 }]);
-    }
+    const exists = items.find(i => i.id === product.id);
+    const newItems = exists
+      ? items.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i)
+      : [...items, { ...product, qty: 1 }];
+    updateItems(newItems);
     setQuery('');
     setSuggestions([]);
     inputRef.current?.focus();
@@ -65,31 +59,31 @@ const ItemPicker = ({ onItemsChange, onPhotoChange }) => {
       category: 'Custom',
       qty: 1,
     };
-    setSelectedItems([...selectedItems, custom]);
+    updateItems([...items, custom]);
     setQuery('');
     setSuggestions([]);
   };
 
   const updateQty = (id, delta) => {
-    setSelectedItems(prev =>
-      prev.map(i => i.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i)
+    const newItems = items.map(i =>
+      i.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i
     );
+    updateItems(newItems);
   };
 
   const removeItem = (id) => {
-    setSelectedItems(prev => prev.filter(i => i.id !== id));
+    updateItems(items.filter(i => i.id !== id));
   };
 
   const saveAsUsual = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedItems));
-    setSavedItems(selectedItems);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    setSavedItems(items);
     setJustSaved(true);
     setTimeout(() => setJustSaved(false), 2000);
   };
 
   const loadUsual = () => {
-    setSelectedItems(savedItems);
-    setShowSaved(false);
+    updateItems(savedItems);
   };
 
   const handlePhoto = (e) => {
@@ -108,11 +102,8 @@ const ItemPicker = ({ onItemsChange, onPhotoChange }) => {
 
       {/* Saved Items Banner */}
       {savedItems.length > 0 && (
-        <button
-          type="button"
-          onClick={loadUsual}
-          className="w-full flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 touch-manipulation"
-        >
+        <button type="button" onClick={loadUsual}
+          className="w-full flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 touch-manipulation">
           <div className="flex items-center gap-2">
             <Star size={16} className="text-amber-500 fill-amber-400" />
             <span className="text-sm font-semibold text-amber-800">Load My Usual Items</span>
@@ -146,12 +137,8 @@ const ItemPicker = ({ onItemsChange, onPhotoChange }) => {
         {suggestions.length > 0 && (
           <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
             {suggestions.map(p => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => addProduct(p)}
-                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-indigo-50 active:bg-indigo-100 border-b border-gray-100 last:border-0 touch-manipulation"
-              >
+              <button key={p.id} type="button" onClick={() => addProduct(p)}
+                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-indigo-50 active:bg-indigo-100 border-b border-gray-100 last:border-0 touch-manipulation">
                 <div>
                   <p className="text-sm font-semibold text-gray-800">{p.name}</p>
                   <p className="text-xs text-gray-400">{p.brand} · {p.category}</p>
@@ -159,27 +146,19 @@ const ItemPicker = ({ onItemsChange, onPhotoChange }) => {
                 <Plus size={16} className="text-indigo-400 shrink-0" />
               </button>
             ))}
-            {query.trim().length >= 2 && (
-              <button
-                type="button"
-                onClick={addCustomItem}
-                className="w-full flex items-center gap-2 px-4 py-3 text-left bg-gray-50 hover:bg-gray-100 touch-manipulation"
-              >
-                <Plus size={15} className="text-gray-500" />
-                <span className="text-sm text-gray-600">Add "<strong>{query}</strong>" as custom item</span>
-              </button>
-            )}
+            <button type="button" onClick={addCustomItem}
+              className="w-full flex items-center gap-2 px-4 py-3 text-left bg-gray-50 hover:bg-gray-100 touch-manipulation">
+              <Plus size={15} className="text-gray-500" />
+              <span className="text-sm text-gray-600">Add "<strong>{query}</strong>" as custom item</span>
+            </button>
           </div>
         )}
 
-        {/* Show add custom when no suggestions */}
+        {/* Custom item when no catalog matches */}
         {query.trim().length >= 2 && suggestions.length === 0 && (
           <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-            <button
-              type="button"
-              onClick={addCustomItem}
-              className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-gray-50 touch-manipulation"
-            >
+            <button type="button" onClick={addCustomItem}
+              className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-gray-50 touch-manipulation">
               <Plus size={15} className="text-gray-500" />
               <span className="text-sm text-gray-600">Add "<strong>{query}</strong>" as custom item</span>
             </button>
@@ -188,13 +167,11 @@ const ItemPicker = ({ onItemsChange, onPhotoChange }) => {
       </div>
 
       {/* Selected Items List */}
-      {selectedItems.length > 0 && (
+      {items.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          {selectedItems.map((item, idx) => (
-            <div
-              key={item.id}
-              className={`flex items-center gap-3 px-4 py-3 ${idx < selectedItems.length - 1 ? 'border-b border-gray-100' : ''}`}
-            >
+          {items.map((item, idx) => (
+            <div key={item.id}
+              className={`flex items-center gap-3 px-4 py-3 ${idx < items.length - 1 ? 'border-b border-gray-100' : ''}`}>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-gray-800 truncate">{item.name}</p>
                 <p className="text-xs text-gray-400">{item.brand}</p>
@@ -216,16 +193,11 @@ const ItemPicker = ({ onItemsChange, onPhotoChange }) => {
               </div>
             </div>
           ))}
-
-          {/* Save as Usual */}
           <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={saveAsUsual}
-              className="flex items-center gap-1.5 text-sm text-amber-600 font-semibold touch-manipulation"
-            >
+            <button type="button" onClick={saveAsUsual}
+              className="flex items-center gap-1.5 text-sm text-amber-600 font-semibold touch-manipulation">
               <Star size={14} className={justSaved ? 'fill-amber-400 text-amber-400' : ''} />
-              {justSaved ? 'Saved as My Usual Items!' : 'Save as My Usual Items'}
+              {justSaved ? 'Saved!' : 'Save as My Usual Items'}
             </button>
           </div>
         </div>
@@ -233,24 +205,16 @@ const ItemPicker = ({ onItemsChange, onPhotoChange }) => {
 
       {/* Photo Attach */}
       <div className="flex gap-2">
-        {/* Camera (mobile) */}
-        <button
-          type="button"
-          onClick={() => cameraRef.current?.click()}
-          className="flex-1 flex items-center justify-center gap-2 border border-gray-300 rounded-xl py-3 text-sm text-gray-600 font-medium bg-white active:bg-gray-50 touch-manipulation"
-        >
+        <button type="button" onClick={() => cameraRef.current?.click()}
+          className="flex-1 flex items-center justify-center gap-2 border border-gray-300 rounded-xl py-3 text-sm text-gray-600 font-medium bg-white active:bg-gray-50 touch-manipulation">
           <Camera size={16} className="text-indigo-400" />
           Take Photo
         </button>
         <input ref={cameraRef} type="file" accept="image/*" capture="environment"
           className="hidden" onChange={handlePhoto} />
 
-        {/* File picker (desktop or photo library) */}
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          className="flex-1 flex items-center justify-center gap-2 border border-gray-300 rounded-xl py-3 text-sm text-gray-600 font-medium bg-white active:bg-gray-50 touch-manipulation"
-        >
+        <button type="button" onClick={() => fileRef.current?.click()}
+          className="flex-1 flex items-center justify-center gap-2 border border-gray-300 rounded-xl py-3 text-sm text-gray-600 font-medium bg-white active:bg-gray-50 touch-manipulation">
           <Image size={16} className="text-indigo-400" />
           Choose Photo
         </button>
@@ -262,11 +226,9 @@ const ItemPicker = ({ onItemsChange, onPhotoChange }) => {
       {photo && (
         <div className="relative rounded-xl overflow-hidden border border-gray-200">
           <img src={photo} alt="Order reference" className="w-full max-h-48 object-cover" />
-          <button
-            type="button"
+          <button type="button"
             onClick={() => { setPhoto(null); onPhotoChange(null); }}
-            className="absolute top-2 right-2 bg-black/60 rounded-full p-1 touch-manipulation"
-          >
+            className="absolute top-2 right-2 bg-black/60 rounded-full p-1 touch-manipulation">
             <X size={14} className="text-white" />
           </button>
           <p className="text-xs text-gray-500 px-3 py-2 bg-gray-50">
