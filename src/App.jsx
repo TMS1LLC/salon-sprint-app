@@ -1,146 +1,109 @@
 import React, { useState } from 'react';
 import { Package, Truck, MapPin, Clock, User, Plus, Check, X } from 'lucide-react';
+import ItemPicker from './components/ItemPicker.jsx';
 
-const SalonSprintApp = () => {
-  const [userType, setUserType] = useState('owner');
-  const [orders, setOrders] = useState([
-    {
-      id: 1,
-      stylist: 'Maria Garcia',
-      salon: 'Glamour Studio',
-      address: '123 Main St, Los Angeles',
-      items: ['Shampoo x3', 'Hair Color Kit', 'Scissors'],
-      status: 'pending',
-      priority: 'same-day',
-      time: '2:30 PM'
-    },
-    {
-      id: 2,
-      stylist: 'John Smith',
-      salon: 'Style Haven',
-      address: '456 Oak Ave, Los Angeles',
-      items: ['Conditioner x5', 'Styling Gel'],
-      status: 'assigned',
-      driver: 'Alex Johnson',
-      priority: 'same-day',
-      time: '3:00 PM'
-    },
-    {
-      id: 3,
-      stylist: 'Sophie Chen',
-      salon: 'Chic Cuts',
-      address: '789 Pine Rd, Los Angeles',
-      items: ['Hair Dryer', 'Brushes x4'],
-      status: 'in-transit',
-      driver: 'Sarah Williams',
-      priority: 'same-day',
-      time: '1:45 PM'
-    }
-  ]);
+const inputClass = "w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white";
 
-  const [drivers] = useState([
-    { id: 1, name: 'Alex Johnson', available: true, deliveries: 3 },
-    { id: 2, name: 'Sarah Williams', available: false, deliveries: 1 },
-    { id: 3, name: 'Mike Brown', available: true, deliveries: 5 }
-  ]);
+const StatusBadge = ({ status }) => {
+  const colors = {
+    pending: 'bg-yellow-100 text-yellow-800',
+    assigned: 'bg-blue-100 text-blue-800',
+    'in-transit': 'bg-purple-100 text-purple-800',
+    delivered: 'bg-green-100 text-green-800',
+  };
+  const labels = {
+    pending: 'Pending',
+    assigned: 'Assigned',
+    'in-transit': 'In Transit',
+    delivered: 'Delivered',
+  };
+  return (
+    <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase shrink-0 ${colors[status]}`}>
+      {labels[status] || status}
+    </span>
+  );
+};
 
-  const [showNewOrder, setShowNewOrder] = useState(false);
-  const [newOrder, setNewOrder] = useState({
-    stylist: '',
-    salon: '',
-    address: '',
-    items: '',
-    time: ''
-  });
+// ─── STYLIST VIEW ─────────────────────────────────────────────────────────────
+const StylistView = ({ orders, onPlaceOrder }) => {
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState('');
+  const [address, setAddress] = useState('');
+  const [time, setTime] = useState('');
+  const [pickedItems, setPickedItems] = useState([]);
+  const [photo, setPhoto] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
 
-  const assignDriver = (orderId, driverId) => {
-    const driver = drivers.find(d => d.id === driverId);
-    setOrders(orders.map(o =>
-      o.id === orderId ? { ...o, status: 'assigned', driver: driver.name } : o
-    ));
+  const canSubmit = name.trim() && address.trim() && time.trim() && pickedItems.length > 0;
+
+  const handleSubmit = () => {
+    if (!canSubmit) return;
+    onPlaceOrder({
+      name,
+      address,
+      time,
+      items: pickedItems.map(i => i.qty > 1 ? `${i.name} x${i.qty}` : i.name),
+      photo,
+    });
+    setSubmitted(true);
+    setShowForm(false);
+    setName(''); setAddress(''); setTime('');
+    setPickedItems([]); setPhoto(null);
   };
 
-  const updateStatus = (orderId, newStatus) => {
-    setOrders(orders.map(o =>
-      o.id === orderId ? { ...o, status: newStatus } : o
-    ));
-  };
-
-  const createOrder = () => {
-    if (newOrder.stylist && newOrder.salon && newOrder.address && newOrder.items && newOrder.time) {
-      const order = {
-        id: orders.length + 1,
-        stylist: newOrder.stylist,
-        salon: newOrder.salon,
-        address: newOrder.address,
-        items: newOrder.items.split(',').map(item => item.trim()),
-        status: 'pending',
-        priority: 'same-day',
-        time: newOrder.time
-      };
-      setOrders([...orders, order]);
-      setNewOrder({ stylist: '', salon: '', address: '', items: '', time: '' });
-      setShowNewOrder(false);
-    }
-  };
-
-  const inputClass = "w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500";
-
-  const StatusBadge = ({ status }) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      assigned: 'bg-blue-100 text-blue-800',
-      'in-transit': 'bg-purple-100 text-purple-800',
-      delivered: 'bg-green-100 text-green-800'
-    };
-    return (
-      <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase shrink-0 ${colors[status]}`}>
-        {status}
-      </span>
-    );
-  };
-
-  const OwnerView = () => (
+  return (
     <div>
-      <div className="flex justify-between items-center mb-5">
-        <h2 className="text-xl font-bold text-gray-800">Delivery Dashboard</h2>
-        <button
-          onClick={() => setShowNewOrder(true)}
-          className="bg-indigo-600 active:bg-indigo-800 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 font-semibold touch-manipulation"
-        >
-          <Plus size={18} />
-          New Order
-        </button>
-      </div>
+      <h2 className="text-xl font-bold text-gray-800 mb-1">My Orders</h2>
+      <p className="text-sm text-gray-500 mb-5">Request supplies and track your deliveries</p>
 
-      {showNewOrder && (
-        <div className="bg-indigo-50 p-4 rounded-xl mb-5 border border-indigo-200">
-          <h3 className="text-lg font-bold mb-4 text-indigo-700">Create New Delivery Order</h3>
-          <div className="flex flex-col gap-3">
-            <input type="text" placeholder="Stylist Name" value={newOrder.stylist}
-              onChange={(e) => setNewOrder({ ...newOrder, stylist: e.target.value })}
+      {submitted && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-5 text-center">
+          <p className="text-green-700 font-semibold text-base">Order received!</p>
+          <p className="text-green-600 text-sm mt-1">We'll confirm your delivery shortly.</p>
+        </div>
+      )}
+
+      {!showForm && (
+        <button
+          onClick={() => { setShowForm(true); setSubmitted(false); }}
+          className="w-full bg-indigo-600 active:bg-indigo-800 text-white py-4 rounded-xl flex items-center justify-center gap-2 font-semibold text-base touch-manipulation mb-5"
+        >
+          <Plus size={20} />
+          Request New Delivery
+        </button>
+      )}
+
+      {showForm && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-5">
+          <h3 className="text-base font-bold text-indigo-700 mb-4">New Delivery Request</h3>
+          <div className="flex flex-col gap-3 mb-4">
+            <input type="text" placeholder="Your name" value={name}
+              onChange={(e) => setName(e.target.value)}
               className={inputClass} />
-            <input type="text" placeholder="Salon Name" value={newOrder.salon}
-              onChange={(e) => setNewOrder({ ...newOrder, salon: e.target.value })}
+            <input type="text" placeholder="Delivery address" value={address}
+              onChange={(e) => setAddress(e.target.value)}
               className={inputClass} />
-            <input type="text" placeholder="Delivery Address" value={newOrder.address}
-              onChange={(e) => setNewOrder({ ...newOrder, address: e.target.value })}
-              className={inputClass} />
-            <input type="text" placeholder="Items (comma separated)" value={newOrder.items}
-              onChange={(e) => setNewOrder({ ...newOrder, items: e.target.value })}
-              className={inputClass} />
-            <input type="text" placeholder="Delivery Time (e.g., 3:00 PM)" value={newOrder.time}
-              onChange={(e) => setNewOrder({ ...newOrder, time: e.target.value })}
+            <input type="text" placeholder="Preferred time (e.g. 3:00 PM)" value={time}
+              onChange={(e) => setTime(e.target.value)}
               className={inputClass} />
           </div>
+
+          <p className="text-sm font-semibold text-gray-700 mb-2">Items needed:</p>
+          <ItemPicker
+            onItemsChange={setPickedItems}
+            onPhotoChange={setPhoto}
+          />
+
           <div className="flex gap-3 mt-4">
-            <button onClick={createOrder}
-              className="flex-1 bg-green-600 active:bg-green-800 text-white py-3 rounded-xl flex items-center justify-center gap-2 font-semibold touch-manipulation">
+            <button onClick={handleSubmit} disabled={!canSubmit}
+              className={`flex-1 py-3.5 rounded-xl flex items-center justify-center gap-2 font-semibold touch-manipulation text-white ${
+                canSubmit ? 'bg-indigo-600 active:bg-indigo-800' : 'bg-indigo-300'
+              }`}>
               <Check size={18} />
-              Create Order
+              Submit Order
             </button>
-            <button onClick={() => setShowNewOrder(false)}
-              className="flex-1 bg-gray-400 active:bg-gray-600 text-white py-3 rounded-xl flex items-center justify-center gap-2 font-semibold touch-manipulation">
+            <button onClick={() => setShowForm(false)}
+              className="flex-1 bg-gray-200 active:bg-gray-400 text-gray-700 py-3.5 rounded-xl flex items-center justify-center gap-2 font-semibold touch-manipulation">
               <X size={18} />
               Cancel
             </button>
@@ -148,33 +111,119 @@ const SalonSprintApp = () => {
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-3">
+        {orders.length === 0 && !submitted && (
+          <p className="text-center text-gray-400 text-sm py-8">No orders yet. Request a delivery above.</p>
+        )}
         {orders.map(order => (
           <div key={order.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-            <div className="flex justify-between items-start mb-3 gap-2">
-              <div className="min-w-0">
-                <h3 className="text-base font-bold text-gray-800 truncate">{order.stylist}</h3>
-                <p className="text-gray-500 text-sm truncate">{order.salon}</p>
-              </div>
+            <div className="flex justify-between items-start gap-2 mb-2">
+              <p className="font-semibold text-gray-800 text-sm">{order.items.join(', ')}</p>
               <StatusBadge status={order.status} />
             </div>
-
-            <div className="space-y-2 text-sm text-gray-700">
-              <div className="flex items-start gap-2">
-                <MapPin size={15} className="text-indigo-600 mt-0.5 shrink-0" />
-                <span>{order.address}</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <Package size={15} className="text-indigo-600 mt-0.5 shrink-0" />
-                <span>{order.items.join(', ')}</span>
-              </div>
+            <div className="space-y-1 text-sm text-gray-500">
               <div className="flex items-center gap-2">
-                <Clock size={15} className="text-indigo-600 shrink-0" />
+                <Clock size={14} className="text-indigo-400 shrink-0" />
                 <span>{order.time}</span>
               </div>
               {order.driver && (
                 <div className="flex items-center gap-2">
-                  <Truck size={15} className="text-indigo-600 shrink-0" />
+                  <Truck size={14} className="text-indigo-400 shrink-0" />
+                  <span>Driver: {order.driver}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ─── OWNER VIEW ───────────────────────────────────────────────────────────────
+const OwnerView = ({ orders, drivers, onAssignDriver, onAddDriver }) => {
+  const [showDriverForm, setShowDriverForm] = useState(false);
+  const [newDriverName, setNewDriverName] = useState('');
+
+  const handleAddDriver = () => {
+    if (newDriverName.trim()) {
+      onAddDriver(newDriverName.trim());
+      setNewDriverName('');
+      setShowDriverForm(false);
+    }
+  };
+
+  return (
+    <div>
+      <h2 className="text-xl font-bold text-gray-800 mb-1">Delivery Dashboard</h2>
+      <p className="text-sm text-gray-500 mb-5">Manage incoming orders and assign drivers</p>
+
+      {/* Driver Management */}
+      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-5">
+        <div className="flex justify-between items-center mb-2">
+          <p className="text-sm font-semibold text-gray-700">Drivers ({drivers.filter(d => d.available).length} available)</p>
+          <button
+            onClick={() => setShowDriverForm(!showDriverForm)}
+            className="text-indigo-600 text-sm font-semibold touch-manipulation flex items-center gap-1"
+          >
+            <Plus size={15} /> Add Driver
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {drivers.map(d => (
+            <span key={d.id} className={`text-xs px-2.5 py-1 rounded-full font-medium ${d.available ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}>
+              {d.name}
+            </span>
+          ))}
+        </div>
+        {showDriverForm && (
+          <div className="flex gap-2 mt-3">
+            <input
+              type="text"
+              placeholder="Driver name"
+              value={newDriverName}
+              onChange={(e) => setNewDriverName(e.target.value)}
+              className={inputClass}
+            />
+            <button onClick={handleAddDriver}
+              className="bg-indigo-600 text-white px-4 rounded-xl font-semibold touch-manipulation shrink-0">
+              Add
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Orders */}
+      <div className="space-y-4">
+        {orders.length === 0 && (
+          <p className="text-center text-gray-400 text-sm py-8">No orders yet. Waiting for stylists to request deliveries.</p>
+        )}
+        {orders.map(order => (
+          <div key={order.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+            <div className="flex justify-between items-start gap-2 mb-3">
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-gray-800 truncate">{order.stylist}</h3>
+                <p className="text-gray-500 text-xs truncate">{order.salon || 'Independent Stylist'}</p>
+              </div>
+              <StatusBadge status={order.status} />
+            </div>
+
+            <div className="space-y-1.5 text-sm text-gray-600">
+              <div className="flex items-start gap-2">
+                <MapPin size={14} className="text-indigo-400 mt-0.5 shrink-0" />
+                <span>{order.address}</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <Package size={14} className="text-indigo-400 mt-0.5 shrink-0" />
+                <span>{order.items.join(', ')}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock size={14} className="text-indigo-400 shrink-0" />
+                <span>{order.time}</span>
+              </div>
+              {order.driver && (
+                <div className="flex items-center gap-2">
+                  <Truck size={14} className="text-indigo-400 shrink-0" />
                   <span>Driver: {order.driver}</span>
                 </div>
               )}
@@ -182,16 +231,16 @@ const SalonSprintApp = () => {
 
             {order.status === 'pending' && (
               <div className="mt-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Assign Driver:</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Assign Driver:</label>
                 <select
-                  onChange={(e) => assignDriver(order.id, parseInt(e.target.value))}
+                  onChange={(e) => onAssignDriver(order.id, parseInt(e.target.value))}
                   className="w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                   defaultValue=""
                 >
                   <option value="" disabled>Select a driver...</option>
                   {drivers.filter(d => d.available).map(driver => (
                     <option key={driver.id} value={driver.id}>
-                      {driver.name} ({driver.deliveries} deliveries today)
+                      {driver.name}
                     </option>
                   ))}
                 </select>
@@ -202,104 +251,116 @@ const SalonSprintApp = () => {
       </div>
     </div>
   );
+};
 
-  const DriverView = () => {
-    const driverOrders = orders.filter(o => o.driver === 'Alex Johnson');
+// ─── DRIVER VIEW ──────────────────────────────────────────────────────────────
+const DriverView = ({ orders, onUpdateStatus }) => {
+  const assignedOrders = orders.filter(o => o.status === 'assigned' || o.status === 'in-transit');
 
-    return (
-      <div>
-        <h2 className="text-xl font-bold text-gray-800 mb-5">My Deliveries</h2>
-        <div className="space-y-4">
-          {driverOrders.map(order => (
-            <div key={order.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-              <div className="flex justify-between items-start mb-3 gap-2">
-                <div className="min-w-0">
-                  <h3 className="text-base font-bold text-gray-800 truncate">{order.stylist}</h3>
-                  <p className="text-gray-500 text-sm truncate">{order.salon}</p>
-                </div>
-                <StatusBadge status={order.status} />
+  return (
+    <div>
+      <h2 className="text-xl font-bold text-gray-800 mb-1">My Deliveries</h2>
+      <p className="text-sm text-gray-500 mb-5">Your active and upcoming deliveries</p>
+
+      <div className="space-y-4">
+        {assignedOrders.length === 0 && (
+          <p className="text-center text-gray-400 text-sm py-8">No deliveries assigned yet.</p>
+        )}
+        {assignedOrders.map(order => (
+          <div key={order.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+            <div className="flex justify-between items-start gap-2 mb-3">
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-gray-800 truncate">{order.stylist}</h3>
+                <p className="text-gray-500 text-xs">{order.salon || 'Independent Stylist'}</p>
               </div>
-
-              <div className="space-y-2 text-sm text-gray-700 mb-4">
-                <div className="flex items-start gap-2">
-                  <MapPin size={15} className="text-indigo-600 mt-0.5 shrink-0" />
-                  <span>{order.address}</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Package size={15} className="text-indigo-600 mt-0.5 shrink-0" />
-                  <span>{order.items.join(', ')}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock size={15} className="text-indigo-600 shrink-0" />
-                  <span>Expected: {order.time}</span>
-                </div>
-              </div>
-
-              {order.status === 'assigned' && (
-                <button
-                  onClick={() => updateStatus(order.id, 'in-transit')}
-                  className="w-full bg-purple-600 active:bg-purple-800 text-white py-3.5 rounded-xl flex items-center justify-center gap-2 font-semibold touch-manipulation"
-                >
-                  <Truck size={18} />
-                  Start Delivery
-                </button>
-              )}
-              {order.status === 'in-transit' && (
-                <button
-                  onClick={() => updateStatus(order.id, 'delivered')}
-                  className="w-full bg-green-600 active:bg-green-800 text-white py-3.5 rounded-xl flex items-center justify-center gap-2 font-semibold touch-manipulation"
-                >
-                  <Check size={18} />
-                  Mark Delivered
-                </button>
-              )}
+              <StatusBadge status={order.status} />
             </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
 
-  const StylistView = () => {
-    const stylistOrders = orders.filter(o => o.stylist === 'Maria Garcia');
-
-    return (
-      <div>
-        <h2 className="text-xl font-bold text-gray-800 mb-5">My Orders</h2>
-        <div className="space-y-4">
-          {stylistOrders.map(order => (
-            <div key={order.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-              <div className="flex justify-between items-start mb-3 gap-2">
-                <h3 className="text-base font-bold text-gray-800 truncate">{order.salon}</h3>
-                <StatusBadge status={order.status} />
+            <div className="space-y-1.5 text-sm text-gray-600 mb-4">
+              <div className="flex items-start gap-2">
+                <MapPin size={14} className="text-indigo-400 mt-0.5 shrink-0" />
+                <span>{order.address}</span>
               </div>
-
-              <div className="space-y-2 text-sm text-gray-700">
-                <div className="flex items-start gap-2">
-                  <Package size={15} className="text-indigo-600 mt-0.5 shrink-0" />
-                  <span>{order.items.join(', ')}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock size={15} className="text-indigo-600 shrink-0" />
-                  <span>Expected: {order.time}</span>
-                </div>
-                {order.driver && (
-                  <div className="flex items-center gap-2">
-                    <User size={15} className="text-indigo-600 shrink-0" />
-                    <span>Driver: {order.driver}</span>
-                  </div>
-                )}
+              <div className="flex items-start gap-2">
+                <Package size={14} className="text-indigo-400 mt-0.5 shrink-0" />
+                <span>{order.items.join(', ')}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock size={14} className="text-indigo-400 shrink-0" />
+                <span>Expected: {order.time}</span>
               </div>
             </div>
-          ))}
-          <button className="w-full bg-indigo-600 active:bg-indigo-800 text-white py-4 rounded-xl flex items-center justify-center gap-2 font-semibold text-base touch-manipulation">
-            <Plus size={20} />
-            Request New Delivery
-          </button>
-        </div>
+
+            {order.status === 'assigned' && (
+              <button
+                onClick={() => onUpdateStatus(order.id, 'in-transit')}
+                className="w-full bg-purple-600 active:bg-purple-800 text-white py-3.5 rounded-xl flex items-center justify-center gap-2 font-semibold touch-manipulation"
+              >
+                <Truck size={18} />
+                Start Delivery
+              </button>
+            )}
+            {order.status === 'in-transit' && (
+              <button
+                onClick={() => onUpdateStatus(order.id, 'delivered')}
+                className="w-full bg-green-600 active:bg-green-800 text-white py-3.5 rounded-xl flex items-center justify-center gap-2 font-semibold touch-manipulation"
+              >
+                <Check size={18} />
+                Mark Delivered
+              </button>
+            )}
+          </div>
+        ))}
       </div>
-    );
+    </div>
+  );
+};
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+const SalonSprintApp = () => {
+  const [userType, setUserType] = useState('stylist');
+  const [orders, setOrders] = useState([]);
+  const [drivers, setDrivers] = useState([
+    { id: 1, name: 'Alex Johnson', available: true },
+    { id: 2, name: 'Sarah Williams', available: true },
+  ]);
+
+  const handlePlaceOrder = (form) => {
+    const order = {
+      id: orders.length + 1,
+      stylist: form.name,
+      salon: '',
+      address: form.address,
+      items: form.items.split(',').map(i => i.trim()),
+      status: 'pending',
+      priority: 'same-day',
+      time: form.time,
+    };
+    setOrders(prev => [...prev, order]);
   };
+
+  const handleAssignDriver = (orderId, driverId) => {
+    const driver = drivers.find(d => d.id === driverId);
+    setOrders(prev => prev.map(o =>
+      o.id === orderId ? { ...o, status: 'assigned', driver: driver.name } : o
+    ));
+  };
+
+  const handleUpdateStatus = (orderId, newStatus) => {
+    setOrders(prev => prev.map(o =>
+      o.id === orderId ? { ...o, status: newStatus } : o
+    ));
+  };
+
+  const handleAddDriver = (name) => {
+    setDrivers(prev => [...prev, { id: prev.length + 1, name, available: true }]);
+  };
+
+  const tabs = [
+    { key: 'stylist', label: 'Stylist' },
+    { key: 'owner', label: 'Supply Owner' },
+    { key: 'driver', label: 'Driver' },
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100">
@@ -309,7 +370,7 @@ const SalonSprintApp = () => {
         <div className="bg-white shadow-sm px-4 pt-6 pb-4">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-indigo-700 flex items-center justify-center gap-2">
-              <Truck size={28} className="text-indigo-600" />
+              <Truck size={26} className="text-indigo-600" />
               Salon Sprint
             </h1>
             <p className="text-gray-500 text-sm mt-0.5">Supplies at Speed · Same-Day Delivery</p>
@@ -318,11 +379,7 @@ const SalonSprintApp = () => {
 
         {/* Tab Bar */}
         <div className="flex bg-gray-100 px-2 py-2 gap-1.5 sticky top-0 z-10 shadow-sm">
-          {[
-            { key: 'owner', label: 'Supply Owner' },
-            { key: 'driver', label: 'Driver' },
-            { key: 'stylist', label: 'Stylist' },
-          ].map(tab => (
+          {tabs.map(tab => (
             <button
               key={tab.key}
               onClick={() => setUserType(tab.key)}
@@ -339,9 +396,20 @@ const SalonSprintApp = () => {
 
         {/* Content */}
         <div className="p-4 pb-10">
-          {userType === 'owner' && <OwnerView />}
-          {userType === 'driver' && <DriverView />}
-          {userType === 'stylist' && <StylistView />}
+          {userType === 'stylist' && (
+            <StylistView orders={orders} onPlaceOrder={handlePlaceOrder} />
+          )}
+          {userType === 'owner' && (
+            <OwnerView
+              orders={orders}
+              drivers={drivers}
+              onAssignDriver={handleAssignDriver}
+              onAddDriver={handleAddDriver}
+            />
+          )}
+          {userType === 'driver' && (
+            <DriverView orders={orders} onUpdateStatus={handleUpdateStatus} />
+          )}
         </div>
 
       </div>
