@@ -355,7 +355,7 @@ const SalonSprintApp = () => {
       stylist: form.name,
       salon: '',
       address: form.address,
-      items: form.items.split(',').map(i => i.trim()),
+      items: form.items,
       status: 'pending',
       priority: 'same-day',
       time: form.time,
