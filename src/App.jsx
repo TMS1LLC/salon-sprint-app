@@ -11,6 +11,33 @@ import ItemPicker from './components/ItemPicker.jsx';
 
 const inputClass = "w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white";
 
+const THEMES = {
+  stylist: {
+    bg:         'from-purple-50 to-indigo-100',
+    border:     'border-b-4 border-indigo-500',
+    title:      'text-indigo-700',
+    icon:       'text-indigo-600',
+    badge:      'bg-indigo-100 text-indigo-700',
+    label:      'Stylist',
+  },
+  store: {
+    bg:         'from-emerald-50 to-green-100',
+    border:     'border-b-4 border-emerald-500',
+    title:      'text-emerald-700',
+    icon:       'text-emerald-600',
+    badge:      'bg-emerald-100 text-emerald-700',
+    label:      'Pro Supply',
+  },
+  driver: {
+    bg:         'from-amber-50 to-orange-100',
+    border:     'border-b-4 border-amber-500',
+    title:      'text-amber-700',
+    icon:       'text-amber-600',
+    badge:      'bg-amber-100 text-amber-700',
+    label:      'Driver',
+  },
+};
+
 const DRIVERS_KEY = 'salonSprint_drivers';
 
 const StatusBadge = ({ status }) => {
@@ -459,13 +486,17 @@ const AppStateProvider = ({ children }) => {
   const handleAssignDriver = async (orderId, driverId) => {
     const driver = drivers.find(d => d.id === driverId);
     await updateDoc(doc(db, 'orders', orderId), {
-      status: 'assigned',
-      driver: driver.name,
+      status:     'assigned',
+      driver:     driver.name,
+      assignedAt: serverTimestamp(),
     });
   };
 
   const handleUpdateStatus = async (orderId, newStatus) => {
-    await updateDoc(doc(db, 'orders', orderId), { status: newStatus });
+    const update = { status: newStatus };
+    if (newStatus === 'in-transit') update.inTransitAt  = serverTimestamp();
+    if (newStatus === 'delivered')  update.deliveredAt  = serverTimestamp();
+    await updateDoc(doc(db, 'orders', orderId), update);
   };
 
   const handleAddDriver = (name) => {
@@ -480,22 +511,28 @@ const AppStateProvider = ({ children }) => {
 };
 
 // ─── PAGE SHELL ───────────────────────────────────────────────────────────────
-const PageShell = ({ children }) => (
-  <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100">
-    <div className="max-w-lg mx-auto">
-      <div className="bg-white shadow-sm px-4 pt-6 pb-4">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-indigo-700 flex items-center justify-center gap-2">
-            <Truck size={26} className="text-indigo-600" />
-            Salon Sprint
-          </h1>
-          <p className="text-gray-500 text-sm mt-0.5">Supplies at Speed · Same-Day Delivery</p>
+const PageShell = ({ children, role = 'stylist' }) => {
+  const t = THEMES[role];
+  return (
+    <div className={`min-h-screen bg-gradient-to-br ${t.bg}`}>
+      <div className="max-w-lg mx-auto">
+        <div className={`bg-white shadow-sm px-4 pt-5 pb-4 ${t.border}`}>
+          <div className="text-center">
+            <span className={`text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full ${t.badge}`}>
+              {t.label}
+            </span>
+            <h1 className={`text-2xl font-bold ${t.title} flex items-center justify-center gap-2 mt-2`}>
+              <Truck size={26} className={t.icon} />
+              Salon Sprint
+            </h1>
+            <p className="text-gray-500 text-sm mt-0.5">Supplies at Speed · Same-Day Delivery</p>
+          </div>
         </div>
+        <div className="p-4 pb-10">{children}</div>
       </div>
-      <div className="p-4 pb-10">{children}</div>
     </div>
-  </div>
-);
+  );
+};
 
 // ─── ROLE SELECTOR (landing page) ─────────────────────────────────────────────
 const RoleSelector = () => {
@@ -527,13 +564,13 @@ const RoleSelector = () => {
 // ─── ROUTED PAGES ─────────────────────────────────────────────────────────────
 const StylistPage = () => {
   const { orders, handlePlaceOrder } = React.useContext(AppState);
-  return <PageShell><StylistView orders={orders} onPlaceOrder={handlePlaceOrder} /></PageShell>;
+  return <PageShell role="stylist"><StylistView orders={orders} onPlaceOrder={handlePlaceOrder} /></PageShell>;
 };
 
 const StorePage = () => {
   const { orders, drivers, handleAssignDriver, handleAddDriver } = React.useContext(AppState);
   return (
-    <PageShell>
+    <PageShell role="store">
       <OwnerView orders={orders} drivers={drivers} onAssignDriver={handleAssignDriver} onAddDriver={handleAddDriver} />
     </PageShell>
   );
@@ -541,7 +578,7 @@ const StorePage = () => {
 
 const DriverPage = () => {
   const { orders, handleUpdateStatus } = React.useContext(AppState);
-  return <PageShell><DriverView orders={orders} onUpdateStatus={handleUpdateStatus} /></PageShell>;
+  return <PageShell role="driver"><DriverView orders={orders} onUpdateStatus={handleUpdateStatus} /></PageShell>;
 };
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
