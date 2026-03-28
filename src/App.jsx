@@ -3,7 +3,7 @@ import { Package, Truck, MapPin, Clock, User, Plus, Check, X } from 'lucide-reac
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import {
   collection, addDoc, updateDoc, doc, onSnapshot,
-  orderBy, query, serverTimestamp,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from './firebase.js';
@@ -391,9 +391,13 @@ const AppStateProvider = ({ children }) => {
 
   // Real-time orders from Firestore
   useEffect(() => {
-    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setOrders(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    const unsubscribe = onSnapshot(collection(db, 'orders'), (snapshot) => {
+      const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Sort newest first client-side (avoids needing a Firestore index)
+      docs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setOrders(docs);
+    }, (err) => {
+      console.error('Firestore error:', err);
     });
     return unsubscribe;
   }, []);
