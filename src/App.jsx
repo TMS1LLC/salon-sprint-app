@@ -44,24 +44,34 @@ const StylistView = ({ orders, onPlaceOrder }) => {
 
   const [validationMsg, setValidationMsg] = useState('');
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name.trim()) { setValidationMsg('Please enter your name.'); return; }
     if (!address.trim()) { setValidationMsg('Please enter your delivery address.'); return; }
     if (!time.trim()) { setValidationMsg('Please enter a preferred delivery time.'); return; }
     if (pickedItems.length === 0) { setValidationMsg('Please add at least one item.'); return; }
     setValidationMsg('');
     saveProfile(name, address);
-    onPlaceOrder({
-      name,
-      address,
-      time,
-      items: pickedItems.map(i => i.qty > 1 ? `${i.name} x${i.qty}` : i.name),
-      photo,
-    });
+
+    const itemList = pickedItems.map(i => i.qty > 1 ? `${i.name} x${i.qty}` : i.name);
+
+    onPlaceOrder({ name, address, time, items: itemList, photo });
+
+    // Send WhatsApp notification to DG
+    try {
+      await fetch('/api/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, address, time, items: itemList }),
+      });
+    } catch (err) {
+      console.warn('Notification failed (non-blocking):', err);
+    }
+
     setSubmitted(true);
     setShowForm(false);
     setTime('');
-    setPickedItems([]); setPhoto(null);
+    setPickedItems([]);
+    setPhoto(null);
   };
 
   return (
