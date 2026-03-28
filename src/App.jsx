@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Package, Truck, MapPin, Clock, User, Plus, Check, X } from 'lucide-react';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import ItemPicker from './components/ItemPicker.jsx';
 
 const inputClass = "w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white";
@@ -350,20 +351,20 @@ const DriverView = ({ orders, onUpdateStatus }) => {
   );
 };
 
-// ─── MAIN APP ─────────────────────────────────────────────────────────────────
-const SalonSprintApp = () => {
-  const [userType, setUserType] = useState('stylist');
+// ─── SHARED STATE (lifted above router so all views share orders/drivers) ──────
+const AppState = React.createContext(null);
+
+const AppStateProvider = ({ children }) => {
   const [orders, setOrders] = useState([]);
   const [drivers, setDrivers] = useState([
-    { id: 1, name: 'Alex Johnson', available: true },
-    { id: 2, name: 'Sarah Williams', available: true },
+    { id: 1, name: 'Your Driver', available: true },
   ]);
 
   const handlePlaceOrder = (form) => {
     const order = {
       id: orders.length + 1,
       stylist: form.name,
-      salon: '',
+      salon: "KG's Suite — Paramus",
       address: form.address,
       items: form.items,
       status: 'pending',
@@ -390,65 +391,90 @@ const SalonSprintApp = () => {
     setDrivers(prev => [...prev, { id: prev.length + 1, name, available: true }]);
   };
 
-  const tabs = [
-    { key: 'stylist', label: 'Stylist' },
-    { key: 'owner', label: 'Supply Owner' },
-    { key: 'driver', label: 'Driver' },
-  ];
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100">
-      <div className="max-w-lg mx-auto">
-
-        {/* Header */}
-        <div className="bg-white shadow-sm px-4 pt-6 pb-4">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-indigo-700 flex items-center justify-center gap-2">
-              <Truck size={26} className="text-indigo-600" />
-              Salon Sprint
-            </h1>
-            <p className="text-gray-500 text-sm mt-0.5">Supplies at Speed · Same-Day Delivery</p>
-          </div>
-        </div>
-
-        {/* Tab Bar */}
-        <div className="flex bg-gray-100 px-2 py-2 gap-1.5 sticky top-0 z-10 shadow-sm">
-          {tabs.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setUserType(tab.key)}
-              className={`flex-1 py-3 rounded-lg text-sm font-semibold transition touch-manipulation ${
-                userType === tab.key
-                  ? 'bg-indigo-600 text-white shadow'
-                  : 'bg-white text-gray-600'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Content */}
-        <div className="p-4 pb-10">
-          {userType === 'stylist' && (
-            <StylistView orders={orders} onPlaceOrder={handlePlaceOrder} />
-          )}
-          {userType === 'owner' && (
-            <OwnerView
-              orders={orders}
-              drivers={drivers}
-              onAssignDriver={handleAssignDriver}
-              onAddDriver={handleAddDriver}
-            />
-          )}
-          {userType === 'driver' && (
-            <DriverView orders={orders} onUpdateStatus={handleUpdateStatus} />
-          )}
-        </div>
-
-      </div>
-    </div>
+    <AppState.Provider value={{ orders, drivers, handlePlaceOrder, handleAssignDriver, handleUpdateStatus, handleAddDriver }}>
+      {children}
+    </AppState.Provider>
   );
 };
+
+// ─── PAGE SHELL ───────────────────────────────────────────────────────────────
+const PageShell = ({ children }) => (
+  <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100">
+    <div className="max-w-lg mx-auto">
+      <div className="bg-white shadow-sm px-4 pt-6 pb-4">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-indigo-700 flex items-center justify-center gap-2">
+            <Truck size={26} className="text-indigo-600" />
+            Salon Sprint
+          </h1>
+          <p className="text-gray-500 text-sm mt-0.5">Supplies at Speed · Same-Day Delivery</p>
+        </div>
+      </div>
+      <div className="p-4 pb-10">{children}</div>
+    </div>
+  </div>
+);
+
+// ─── ROLE SELECTOR (landing page) ─────────────────────────────────────────────
+const RoleSelector = () => {
+  const navigate = useNavigate();
+  const roles = [
+    { path: '/stylist', label: 'I\'m a Stylist', desc: 'Request supplies for your suite', icon: <User size={28} className="text-indigo-600" /> },
+    { path: '/owner', label: 'I\'m Supply Owner', desc: 'Manage orders & assign drivers', icon: <Package size={28} className="text-indigo-600" /> },
+    { path: '/driver', label: 'I\'m a Driver', desc: 'View and complete deliveries', icon: <Truck size={28} className="text-indigo-600" /> },
+  ];
+  return (
+    <PageShell>
+      <p className="text-center text-gray-500 text-sm mb-6">Select your role to continue</p>
+      <div className="flex flex-col gap-4">
+        {roles.map(r => (
+          <button key={r.path} onClick={() => navigate(r.path)}
+            className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-4 shadow-sm active:bg-indigo-50 touch-manipulation text-left w-full">
+            <div className="bg-indigo-50 rounded-xl p-3 shrink-0">{r.icon}</div>
+            <div>
+              <p className="font-bold text-gray-800 text-base">{r.label}</p>
+              <p className="text-gray-500 text-sm">{r.desc}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </PageShell>
+  );
+};
+
+// ─── ROUTED PAGES ─────────────────────────────────────────────────────────────
+const StylistPage = () => {
+  const { orders, handlePlaceOrder } = React.useContext(AppState);
+  return <PageShell><StylistView orders={orders} onPlaceOrder={handlePlaceOrder} /></PageShell>;
+};
+
+const OwnerPage = () => {
+  const { orders, drivers, handleAssignDriver, handleAddDriver } = React.useContext(AppState);
+  return (
+    <PageShell>
+      <OwnerView orders={orders} drivers={drivers} onAssignDriver={handleAssignDriver} onAddDriver={handleAddDriver} />
+    </PageShell>
+  );
+};
+
+const DriverPage = () => {
+  const { orders, handleUpdateStatus } = React.useContext(AppState);
+  return <PageShell><DriverView orders={orders} onUpdateStatus={handleUpdateStatus} /></PageShell>;
+};
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+const SalonSprintApp = () => (
+  <BrowserRouter>
+    <AppStateProvider>
+      <Routes>
+        <Route path="/" element={<RoleSelector />} />
+        <Route path="/stylist" element={<StylistPage />} />
+        <Route path="/owner" element={<OwnerPage />} />
+        <Route path="/driver" element={<DriverPage />} />
+      </Routes>
+    </AppStateProvider>
+  </BrowserRouter>
+);
 
 export default SalonSprintApp;
