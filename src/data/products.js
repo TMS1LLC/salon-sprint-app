@@ -1,4 +1,4 @@
-// SalonCentric product catalog for autocomplete
+// Pro Supply product catalog for autocomplete
 // Organized by brand — expand as needed
 
 const products = [
@@ -88,11 +88,71 @@ const products = [
   { id: 'pm7', brand: 'Paul Mitchell', name: 'Inkworks Black',           category: 'Color' },
 
   // ── Pravana ───────────────────────────────────────────────
-  { id: 'pv1', brand: 'Pravana',  name: 'ChromaSilk 7N',            category: 'Color' },
-  { id: 'pv2', brand: 'Pravana',  name: 'ChromaSilk 8N',            category: 'Color' },
-  { id: 'pv3', brand: 'Pravana',  name: 'Vivids Red',               category: 'Color' },
-  { id: 'pv4', brand: 'Pravana',  name: 'Vivids Blue',              category: 'Color' },
-  { id: 'pv5', brand: 'Pravana',  name: 'Vivids Purple',            category: 'Color' },
+  // ChromaSilk — Naturals
+  { id: 'pv1',  brand: 'Pravana', name: 'ChromaSilk 4N',             category: 'Color' },
+  { id: 'pv2',  brand: 'Pravana', name: 'ChromaSilk 5N',             category: 'Color' },
+  { id: 'pv3',  brand: 'Pravana', name: 'ChromaSilk 6N',             category: 'Color' },
+  { id: 'pv4',  brand: 'Pravana', name: 'ChromaSilk 7N',             category: 'Color' },
+  { id: 'pv5',  brand: 'Pravana', name: 'ChromaSilk 8N',             category: 'Color' },
+  { id: 'pv6',  brand: 'Pravana', name: 'ChromaSilk 9N',             category: 'Color' },
+  { id: 'pv7',  brand: 'Pravana', name: 'ChromaSilk 10N',            category: 'Color' },
+  // ChromaSilk — Warm (Gold/Copper)
+  { id: 'pv8',  brand: 'Pravana', name: 'ChromaSilk 5G',             category: 'Color' },
+  { id: 'pv9',  brand: 'Pravana', name: 'ChromaSilk 6G',             category: 'Color' },
+  { id: 'pv10', brand: 'Pravana', name: 'ChromaSilk 7G',             category: 'Color' },
+  { id: 'pv11', brand: 'Pravana', name: 'ChromaSilk 8G',             category: 'Color' },
+  { id: 'pv12', brand: 'Pravana', name: 'ChromaSilk 6C',             category: 'Color' },
+  { id: 'pv13', brand: 'Pravana', name: 'ChromaSilk 7C',             category: 'Color' },
+  { id: 'pv14', brand: 'Pravana', name: 'ChromaSilk 8C',             category: 'Color' },
+  // ChromaSilk — Cool (Ash)
+  { id: 'pv15', brand: 'Pravana', name: 'ChromaSilk 6A',             category: 'Color' },
+  { id: 'pv16', brand: 'Pravana', name: 'ChromaSilk 7A',             category: 'Color' },
+  { id: 'pv17', brand: 'Pravana', name: 'ChromaSilk 8A',             category: 'Color' },
+  { id: 'pv18', brand: 'Pravana', name: 'ChromaSilk 9A',             category: 'Color' },
+  // ChromaSilk — Reds
+  { id: 'pv19', brand: 'Pravana', name: 'ChromaSilk 5R',             category: 'Color' },
+  { id: 'pv20', brand: 'Pravana', name: 'ChromaSilk 6R',             category: 'Color' },
+  { id: 'pv21', brand: 'Pravana', name: 'ChromaSilk 7R',             category: 'Color' },
+  { id: 'pv22', brand: 'Pravana', name: 'ChromaSilk 6RV',            category: 'Color' },
+  { id: 'pv23', brand: 'Pravana', name: 'ChromaSilk 7RV',            category: 'Color' },
+  // Vivids — Full Range
+  { id: 'pv24', brand: 'Pravana', name: 'Vivids Red',                category: 'Color' },
+  { id: 'pv25', brand: 'Pravana', name: 'Vivids Orange',             category: 'Color' },
+  { id: 'pv26', brand: 'Pravana', name: 'Vivids Yellow',             category: 'Color' },
+  { id: 'pv27', brand: 'Pravana', name: 'Vivids Green',              category: 'Color' },
+  { id: 'pv28', brand: 'Pravana', name: 'Vivids Blue',               category: 'Color' },
+  { id: 'pv29', brand: 'Pravana', name: 'Vivids Violet',             category: 'Color' },
+  { id: 'pv30', brand: 'Pravana', name: 'Vivids Purple',             category: 'Color' },
+  { id: 'pv31', brand: 'Pravana', name: 'Vivids Pink',               category: 'Color' },
+  { id: 'pv32', brand: 'Pravana', name: 'Vivids Magenta',            category: 'Color' },
+  { id: 'pv33', brand: 'Pravana', name: 'Vivids Silver',             category: 'Color' },
+  { id: 'pv34', brand: 'Pravana', name: 'Vivids Locked-In Red',      category: 'Color' },
+  { id: 'pv35', brand: 'Pravana', name: 'Vivids Locked-In Blue',     category: 'Color' },
+  { id: 'pv36', brand: 'Pravana', name: 'Vivids Locked-In Purple',   category: 'Color' },
+  // ChromaSilk Pastels
+  { id: 'pv37', brand: 'Pravana', name: 'ChromaSilk Pastel Pink',    category: 'Color' },
+  { id: 'pv38', brand: 'Pravana', name: 'ChromaSilk Pastel Violet',  category: 'Color' },
+  { id: 'pv39', brand: 'Pravana', name: 'ChromaSilk Pastel Blue',    category: 'Color' },
+  { id: 'pv40', brand: 'Pravana', name: 'ChromaSilk Pastel Peach',   category: 'Color' },
+  { id: 'pv41', brand: 'Pravana', name: 'ChromaSilk Pastel Mint',    category: 'Color' },
+  // Nevo (ammonia-free)
+  { id: 'pv42', brand: 'Pravana', name: 'Nevo 6N',                   category: 'Color' },
+  { id: 'pv43', brand: 'Pravana', name: 'Nevo 7N',                   category: 'Color' },
+  { id: 'pv44', brand: 'Pravana', name: 'Nevo 8N',                   category: 'Color' },
+  { id: 'pv45', brand: 'Pravana', name: 'Nevo 7G',                   category: 'Color' },
+  // Developers & Lightener
+  { id: 'pv46', brand: 'Pravana', name: 'ChromaSilk Developer 10 Vol', category: 'Developer' },
+  { id: 'pv47', brand: 'Pravana', name: 'ChromaSilk Developer 20 Vol', category: 'Developer' },
+  { id: 'pv48', brand: 'Pravana', name: 'ChromaSilk Developer 30 Vol', category: 'Developer' },
+  { id: 'pv49', brand: 'Pravana', name: 'ChromaSilk Developer 40 Vol', category: 'Developer' },
+  { id: 'pv50', brand: 'Pravana', name: 'Pure Light Power Lightener',  category: 'Lightener' },
+  // Care line
+  { id: 'pv51', brand: 'Pravana', name: 'Intensify Daily Color-Enhancing Shampoo', category: 'Shampoo' },
+  { id: 'pv52', brand: 'Pravana', name: 'Vivids Color Protect Shampoo',             category: 'Shampoo' },
+  { id: 'pv53', brand: 'Pravana', name: 'Vivids Color Protect Conditioner',         category: 'Conditioner' },
+  { id: 'pv54', brand: 'Pravana', name: 'The Perfect Blonde Shampoo',               category: 'Shampoo' },
+  { id: 'pv55', brand: 'Pravana', name: 'The Perfect Blonde Conditioner',           category: 'Conditioner' },
+  { id: 'pv56', brand: 'Pravana', name: 'Intense Therapy Reconstructor',            category: 'Treatment' },
 
   // ── Ion / Developer ───────────────────────────────────────
   { id: 'i1',  brand: 'Ion',      name: 'Sensitive Scalp Developer 10 Vol', category: 'Developer' },

@@ -8,7 +8,7 @@ const ItemPicker = ({ onItemsChange, onPhotoChange }) => {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [items, setItems] = useState([]);
-  const [photo, setPhoto] = useState(null);
+  const [photos, setPhotos] = useState([]); // [{file, previewUrl}]
   const [savedItems, setSavedItems] = useState([]);
   const [justSaved, setJustSaved] = useState(false);
   const inputRef = useRef(null);
@@ -87,14 +87,24 @@ const ItemPicker = ({ onItemsChange, onPhotoChange }) => {
   };
 
   const handlePhoto = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setPhoto(ev.target.result);
-      onPhotoChange(ev.target.result);
-    };
-    reader.readAsDataURL(file);
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    const newPhotos = files.map(file => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+    const updated = [...photos, ...newPhotos];
+    setPhotos(updated);
+    onPhotoChange(updated.map(p => p.file));
+    // Reset input so the same file can be re-selected if needed
+    e.target.value = '';
+  };
+
+  const removePhoto = (index) => {
+    URL.revokeObjectURL(photos[index].previewUrl);
+    const updated = photos.filter((_, i) => i !== index);
+    setPhotos(updated);
+    onPhotoChange(updated.map(p => p.file));
   };
 
   return (
@@ -216,24 +226,26 @@ const ItemPicker = ({ onItemsChange, onPhotoChange }) => {
         <button type="button" onClick={() => fileRef.current?.click()}
           className="flex-1 flex items-center justify-center gap-2 border border-gray-300 rounded-xl py-3 text-sm text-gray-600 font-medium bg-white active:bg-gray-50 touch-manipulation">
           <Image size={16} className="text-indigo-400" />
-          Choose Photo
+          Choose Photos
         </button>
-        <input ref={fileRef} type="file" accept="image/*"
+        <input ref={fileRef} type="file" accept="image/*" multiple
           className="hidden" onChange={handlePhoto} />
       </div>
 
-      {/* Photo Preview */}
-      {photo && (
-        <div className="relative rounded-xl overflow-hidden border border-gray-200">
-          <img src={photo} alt="Order reference" className="w-full max-h-48 object-cover" />
-          <button type="button"
-            onClick={() => { setPhoto(null); onPhotoChange(null); }}
-            className="absolute top-2 right-2 bg-black/60 rounded-full p-1 touch-manipulation">
-            <X size={14} className="text-white" />
-          </button>
-          <p className="text-xs text-gray-500 px-3 py-2 bg-gray-50">
-            Photo attached — founder will see this with your order
-          </p>
+      {/* Photo Previews */}
+      {photos.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {photos.map((p, i) => (
+            <div key={i} className="relative w-20 h-20 shrink-0">
+              <img src={p.previewUrl} alt={`Photo ${i + 1}`}
+                className="w-full h-full object-cover rounded-xl border border-gray-200" />
+              <button type="button" onClick={() => removePhoto(i)}
+                className="absolute -top-1.5 -right-1.5 bg-red-500 rounded-full p-0.5 touch-manipulation">
+                <X size={12} className="text-white" />
+              </button>
+            </div>
+          ))}
+          <p className="w-full text-xs text-gray-400 mt-1">{photos.length} photo{photos.length > 1 ? 's' : ''} attached</p>
         </div>
       )}
 

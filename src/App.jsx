@@ -1,9 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Package, Truck, MapPin, Clock, User, Plus, Check, X } from 'lucide-react';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import {
+  collection, addDoc, updateDoc, doc, onSnapshot,
+  orderBy, query, serverTimestamp,
+} from 'firebase/firestore';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from './firebase.js';
 import ItemPicker from './components/ItemPicker.jsx';
 
 const inputClass = "w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white";
+
+const DRIVERS_KEY = 'salonSprint_drivers';
 
 const StatusBadge = ({ status }) => {
   const colors = {
@@ -31,48 +39,38 @@ const PROFILE_KEY = 'salonSprint_stylistProfile';
 const StylistView = ({ orders, onPlaceOrder }) => {
   const savedProfile = JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}');
 
-  const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState(savedProfile.name || '');
-  const [address, setAddress] = useState(savedProfile.address || '');
-  const [time, setTime] = useState('');
+  const [showForm, setShowForm]       = useState(false);
+  const [name, setName]               = useState(savedProfile.name || '');
+  const [address, setAddress]         = useState(savedProfile.address || '');
+  const [time, setTime]               = useState('');
   const [pickedItems, setPickedItems] = useState([]);
-  const [photo, setPhoto] = useState(null);
-  const [submitted, setSubmitted] = useState(false);
+  const [photoFiles, setPhotoFiles]   = useState([]);
+  const [submitted, setSubmitted]     = useState(false);
+  const [submitting, setSubmitting]   = useState(false);
+  const [validationMsg, setValidationMsg] = useState('');
 
   const saveProfile = (n, a) => {
     localStorage.setItem(PROFILE_KEY, JSON.stringify({ name: n, address: a }));
   };
 
-  const [validationMsg, setValidationMsg] = useState('');
-
   const handleSubmit = async () => {
-    if (!name.trim()) { setValidationMsg('Please enter your name.'); return; }
-    if (!address.trim()) { setValidationMsg('Please enter your delivery address.'); return; }
-    if (!time.trim()) { setValidationMsg('Please enter a preferred delivery time.'); return; }
+    if (!name.trim())          { setValidationMsg('Please enter your name.'); return; }
+    if (!address.trim())       { setValidationMsg('Please enter your delivery address.'); return; }
+    if (!time.trim())          { setValidationMsg('Please enter a preferred delivery time.'); return; }
     if (pickedItems.length === 0) { setValidationMsg('Please add at least one item.'); return; }
     setValidationMsg('');
+    setSubmitting(true);
     saveProfile(name, address);
 
     const itemList = pickedItems.map(i => i.qty > 1 ? `${i.name} x${i.qty}` : i.name);
-
-    onPlaceOrder({ name, address, time, items: itemList, photo });
-
-    // Send WhatsApp notification to DG
-    try {
-      await fetch('/api/notify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, address, time, items: itemList }),
-      });
-    } catch (err) {
-      console.warn('Notification failed (non-blocking):', err);
-    }
+    await onPlaceOrder({ name, address, time, items: itemList }, photoFiles);
 
     setSubmitted(true);
     setShowForm(false);
     setTime('');
     setPickedItems([]);
-    setPhoto(null);
+    setPhotoFiles([]);
+    setSubmitting(false);
   };
 
   return (
@@ -125,19 +123,19 @@ const StylistView = ({ orders, onPlaceOrder }) => {
           <p className="text-sm font-semibold text-gray-700 mb-2">Items needed:</p>
           <ItemPicker
             onItemsChange={setPickedItems}
-            onPhotoChange={setPhoto}
+            onPhotoChange={setPhotoFiles}
           />
 
           {validationMsg && (
             <p className="text-red-500 text-sm mt-3 mb-1 font-medium">{validationMsg}</p>
           )}
           <div className="flex gap-3 mt-3">
-            <button onClick={handleSubmit}
-              className="flex-1 py-3.5 rounded-xl flex items-center justify-center gap-2 font-semibold touch-manipulation text-white bg-indigo-600 active:bg-indigo-800">
+            <button onClick={handleSubmit} disabled={submitting}
+              className="flex-1 py-3.5 rounded-xl flex items-center justify-center gap-2 font-semibold touch-manipulation text-white bg-indigo-600 active:bg-indigo-800 disabled:opacity-60">
               <Check size={18} />
-              Submit Order
+              {submitting ? 'Sending…' : 'Submit Order'}
             </button>
-            <button onClick={() => setShowForm(false)}
+            <button onClick={() => setShowForm(false)} disabled={submitting}
               className="flex-1 bg-gray-200 active:bg-gray-400 text-gray-700 py-3.5 rounded-xl flex items-center justify-center gap-2 font-semibold touch-manipulation">
               <X size={18} />
               Cancel
@@ -168,6 +166,14 @@ const StylistView = ({ orders, onPlaceOrder }) => {
                 </div>
               )}
             </div>
+            {order.photoUrls?.length > 0 && (
+              <div className="flex gap-2 mt-3 flex-wrap">
+                {order.photoUrls.map((url, i) => (
+                  <img key={i} src={url} alt={`Photo ${i + 1}`}
+                    className="w-16 h-16 object-cover rounded-lg border border-gray-200" />
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -175,10 +181,10 @@ const StylistView = ({ orders, onPlaceOrder }) => {
   );
 };
 
-// ─── OWNER VIEW ───────────────────────────────────────────────────────────────
+// ─── OWNER / STORE VIEW ───────────────────────────────────────────────────────
 const OwnerView = ({ orders, drivers, onAssignDriver, onAddDriver }) => {
   const [showDriverForm, setShowDriverForm] = useState(false);
-  const [newDriverName, setNewDriverName] = useState('');
+  const [newDriverName, setNewDriverName]   = useState('');
 
   const handleAddDriver = () => {
     if (newDriverName.trim()) {
@@ -264,6 +270,17 @@ const OwnerView = ({ orders, drivers, onAssignDriver, onAddDriver }) => {
               )}
             </div>
 
+            {order.photoUrls?.length > 0 && (
+              <div className="flex gap-2 mt-3 flex-wrap">
+                {order.photoUrls.map((url, i) => (
+                  <a key={i} href={url} target="_blank" rel="noreferrer">
+                    <img src={url} alt={`Photo ${i + 1}`}
+                      className="w-20 h-20 object-cover rounded-lg border border-gray-200" />
+                  </a>
+                ))}
+              </div>
+            )}
+
             {order.status === 'pending' && (
               <div className="mt-4">
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">Assign Driver:</label>
@@ -326,6 +343,17 @@ const DriverView = ({ orders, onUpdateStatus }) => {
               </div>
             </div>
 
+            {order.photoUrls?.length > 0 && (
+              <div className="flex gap-2 mb-4 flex-wrap">
+                {order.photoUrls.map((url, i) => (
+                  <a key={i} href={url} target="_blank" rel="noreferrer">
+                    <img src={url} alt={`Photo ${i + 1}`}
+                      className="w-16 h-16 object-cover rounded-lg border border-gray-200" />
+                  </a>
+                ))}
+              </div>
+            )}
+
             {order.status === 'assigned' && (
               <button
                 onClick={() => onUpdateStatus(order.id, 'in-transit')}
@@ -351,40 +379,78 @@ const DriverView = ({ orders, onUpdateStatus }) => {
   );
 };
 
-// ─── SHARED STATE (lifted above router so all views share orders/drivers) ──────
+// ─── SHARED STATE (Firebase-backed) ───────────────────────────────────────────
 const AppState = React.createContext(null);
 
 const AppStateProvider = ({ children }) => {
   const [orders, setOrders] = useState([]);
-  const [drivers, setDrivers] = useState([
-    { id: 1, name: 'Your Driver', available: true },
-  ]);
+  const [drivers, setDrivers] = useState(() => {
+    const saved = localStorage.getItem(DRIVERS_KEY);
+    return saved ? JSON.parse(saved) : [{ id: 1, name: 'Your Driver', available: true }];
+  });
 
-  const handlePlaceOrder = (form) => {
-    const order = {
-      id: orders.length + 1,
-      stylist: form.name,
-      salon: "KG's Suite — Paramus",
-      address: form.address,
-      items: form.items,
-      status: 'pending',
-      priority: 'same-day',
-      time: form.time,
-    };
-    setOrders(prev => [...prev, order]);
+  // Real-time orders from Firestore
+  useEffect(() => {
+    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setOrders(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return unsubscribe;
+  }, []);
+
+  // Persist drivers to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem(DRIVERS_KEY, JSON.stringify(drivers));
+  }, [drivers]);
+
+  const handlePlaceOrder = async (form, photoFiles = []) => {
+    // Upload photos to Firebase Storage
+    const photoUrls = [];
+    for (const file of photoFiles) {
+      try {
+        const fileRef = storageRef(storage, `orders/${Date.now()}_${file.name}`);
+        await uploadBytes(fileRef, file);
+        const url = await getDownloadURL(fileRef);
+        photoUrls.push(url);
+      } catch (err) {
+        console.warn('Photo upload failed (skipped):', err);
+      }
+    }
+
+    // Write order to Firestore
+    await addDoc(collection(db, 'orders'), {
+      stylist:   form.name,
+      address:   form.address,
+      items:     form.items,
+      time:      form.time,
+      photoUrls,
+      status:    'pending',
+      priority:  'same-day',
+      createdAt: serverTimestamp(),
+    });
+
+    // WhatsApp notification (non-blocking)
+    fetch('/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: form.name, address: form.address,
+        time: form.time, items: form.items,
+        photoCount: photoUrls.length,
+      }),
+    }).catch(err => console.warn('Notification failed:', err));
   };
 
-  const handleAssignDriver = (orderId, driverId) => {
+  const handleAssignDriver = async (orderId, driverId) => {
     const driver = drivers.find(d => d.id === driverId);
-    setOrders(prev => prev.map(o =>
-      o.id === orderId ? { ...o, status: 'assigned', driver: driver.name } : o
-    ));
+    await updateDoc(doc(db, 'orders', orderId), {
+      status: 'assigned',
+      driver: driver.name,
+    });
   };
 
-  const handleUpdateStatus = (orderId, newStatus) => {
-    setOrders(prev => prev.map(o =>
-      o.id === orderId ? { ...o, status: newStatus } : o
-    ));
+  const handleUpdateStatus = async (orderId, newStatus) => {
+    await updateDoc(doc(db, 'orders', orderId), { status: newStatus });
   };
 
   const handleAddDriver = (name) => {
@@ -420,9 +486,9 @@ const PageShell = ({ children }) => (
 const RoleSelector = () => {
   const navigate = useNavigate();
   const roles = [
-    { path: '/stylist', label: 'I\'m a Stylist', desc: 'Request supplies for your suite', icon: <User size={28} className="text-indigo-600" /> },
-    { path: '/owner', label: 'I\'m Supply Owner', desc: 'Manage orders & assign drivers', icon: <Package size={28} className="text-indigo-600" /> },
-    { path: '/driver', label: 'I\'m a Driver', desc: 'View and complete deliveries', icon: <Truck size={28} className="text-indigo-600" /> },
+    { path: '/stylist', label: "I'm a Stylist",     desc: 'Request supplies for your suite',    icon: <User    size={28} className="text-indigo-600" /> },
+    { path: '/store',   label: "I'm Pro Supply",     desc: 'Manage orders & assign drivers',     icon: <Package size={28} className="text-indigo-600" /> },
+    { path: '/driver',  label: "I'm a Driver",       desc: 'View and complete deliveries',       icon: <Truck   size={28} className="text-indigo-600" /> },
   ];
   return (
     <PageShell>
@@ -449,7 +515,7 @@ const StylistPage = () => {
   return <PageShell><StylistView orders={orders} onPlaceOrder={handlePlaceOrder} /></PageShell>;
 };
 
-const OwnerPage = () => {
+const StorePage = () => {
   const { orders, drivers, handleAssignDriver, handleAddDriver } = React.useContext(AppState);
   return (
     <PageShell>
@@ -468,10 +534,10 @@ const SalonSprintApp = () => (
   <BrowserRouter>
     <AppStateProvider>
       <Routes>
-        <Route path="/" element={<RoleSelector />} />
+        <Route path="/"       element={<RoleSelector />} />
         <Route path="/stylist" element={<StylistPage />} />
-        <Route path="/owner" element={<OwnerPage />} />
-        <Route path="/driver" element={<DriverPage />} />
+        <Route path="/store"   element={<StorePage />} />
+        <Route path="/driver"  element={<DriverPage />} />
       </Routes>
     </AppStateProvider>
   </BrowserRouter>
