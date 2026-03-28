@@ -35,6 +35,14 @@ const StatusBadge = ({ status }) => {
 
 const PROFILE_KEY = 'salonSprint_stylistProfile';
 
+const formatTime = (t) => {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+};
+
 // ─── STYLIST VIEW ─────────────────────────────────────────────────────────────
 const StylistView = ({ orders, onPlaceOrder }) => {
   const savedProfile = JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}');
@@ -56,14 +64,14 @@ const StylistView = ({ orders, onPlaceOrder }) => {
   const handleSubmit = async () => {
     if (!name.trim())          { setValidationMsg('Please enter your name.'); return; }
     if (!address.trim())       { setValidationMsg('Please enter your delivery address.'); return; }
-    if (!time.trim())          { setValidationMsg('Please enter a preferred delivery time.'); return; }
+    if (!time)                 { setValidationMsg('Please select a preferred delivery time.'); return; }
     if (pickedItems.length === 0) { setValidationMsg('Please add at least one item.'); return; }
     setValidationMsg('');
     setSubmitting(true);
     saveProfile(name, address);
 
     const itemList = pickedItems.map(i => i.qty > 1 ? `${i.name} x${i.qty}` : i.name);
-    await onPlaceOrder({ name, address, time, items: itemList }, photoFiles);
+    await onPlaceOrder({ name, address, time: formatTime(time), items: itemList }, photoFiles);
 
     setSubmitted(true);
     setShowForm(false);
@@ -115,9 +123,12 @@ const StylistView = ({ orders, onPlaceOrder }) => {
                 <p className="text-xs text-indigo-500 mt-1 ml-1">Remembered from last order</p>
               )}
             </div>
-            <input type="text" placeholder="Preferred time (e.g. 3:00 PM)" value={time}
-              onChange={(e) => setTime(e.target.value)}
-              className={inputClass} />
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1 ml-1">Preferred delivery time</label>
+              <input type="time" value={time}
+                onChange={(e) => setTime(e.target.value)}
+                className={inputClass} />
+            </div>
           </div>
 
           <p className="text-sm font-semibold text-gray-700 mb-2">Items needed:</p>
